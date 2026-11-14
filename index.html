@@ -47,8 +47,35 @@ const field=(key,label,s)=>`<label>${label}<input type="number" step="any" value
 function setVal(key,v){state[dist][key]=v.trim()===''?NaN:Number(v);result()}
 function setMode(v){state[dist].mode=v;if(v==='quantile')state[dist].k=.95;page('calc')}
 function reset(){state[dist]={...initial[dist]};page('calc')}
+const publishedDocs={pdf:"https://link.camscanner.com/4kHlGSIjGq",video1:"https://youtu.be/brzpbnj2RQk",video2:"https://youtu.be/THVEHQZjVbU"};
+const draftDocs={...publishedDocs};
+function validDocUrl(value){try{const u=new URL(value);return ['https:','http:'].includes(u.protocol)}catch{return false}}
+function docCard(title,description,key){const url=publishedDocs[key];return `<div class="doc-item"><h3>${title}</h3><p>${description}</p>${url&&validDocUrl(url)?`<a class="doc-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${key==='pdf'?'Ver soluciones manuscritas':key==='video1'?'Ver exposición — Parte 1':'Ver exposición — Parte 2'} ↗</a>`:'<span class="pending">Pendiente de publicación</span>'}</div>`}
+function setDocDraft(key,value){draftDocs[key]=value.trim();const status=document.getElementById('doc-status');if(status)status.textContent='Cambios sin publicar. Descargue el archivo y súbalo a GitHub para hacerlos visibles.'}
+function downloadDocs(){
+const pdf=draftDocs.pdf,video1=draftDocs.video1,video2=draftDocs.video2;
+if((pdf&&!validDocUrl(pdf))||(video1&&!validDocUrl(video1))||(video2&&!validDocUrl(video2))){document.getElementById('doc-status').textContent='Ingrese enlaces completos que comiencen con https:// o deje el campo vacío.';return}
+const original=document.documentElement.outerHTML;
+const marker=/const publishedDocs=\{pdf:"[^"]*",video1:"[^"]*",video2:"[^"]*"\};/;
+const config='const publishedDocs='+JSON.stringify({pdf,video1,video2}).replace(/</g,'\\u003c')+';';
+const updated='<!doctype html>'+original.replace(marker,()=>config);
+if(updated===('<!doctype html>'+original)){document.getElementById('doc-status').textContent='No se pudo preparar el archivo. Vuelva a intentarlo.';return}
+const blob=new Blob([updated],{type:'text/html;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='index.html';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+document.getElementById('doc-status').textContent='Archivo index.html descargado. Reemplácelo en su repositorio GitHub para publicar los enlaces.';
+}
 function page(p){if(p==='guide'||p==='expo')currentSection=p;let a=document.getElementById('app');if(p==='home'){a.innerHTML=`<div class="card"><h2>Laboratorio estadístico universal</h2><p class="muted">Seleccione una distribución e ingrese los parámetros para calcular probabilidades.</p><div class="grid">${Object.keys(names).map(d=>`<button onclick="choose('${d}')">${names[d]} →</button>`).join('')}</div></div>`;return}
-if(p==='docs'){a.innerHTML=`<div class="card"><h2>Documentación del proyecto</h2><p class="muted">En esta sección se encuentran los documentos correspondientes al proyecto final de Estadística I.</p><div class="doc-item"><h3>Soluciones manuscritas</h3><p>Documento PDF con los procedimientos y respuestas de los ejercicios de la guía.</p><span class="pending">Documento pendiente de publicación</span></div><div class="doc-item"><h3>Video explicativo</h3><p>Presentación de los ejercicios asignados y comprobación de resultados en el simulador web.</p><span class="pending">Video pendiente de publicación</span></div><p><button onclick="page('home')">← Volver al inicio</button></p></div>`;return}
+if(p==='docs'){
+a.innerHTML=`<div class="card"><h2>Documentación del proyecto</h2><p class="muted">En esta sección se encuentran los documentos correspondientes al proyecto final de Estadística I.</p>
+${docCard('Soluciones manuscritas','Documento PDF con los procedimientos y respuestas de los ejercicios de la guía.','pdf')}
+${docCard('Exposición — Parte 1','Primera parte de la presentación en video de los ejercicios asignados.','video1')}
+${docCard('Exposición — Parte 2','Segunda parte de la presentación en video de los ejercicios asignados.','video2')}
+<details class="doc-item"><summary style="cursor:pointer;font-weight:650">Configurar enlaces de entrega</summary><p class="small">Pegue los enlaces y descargue el archivo actualizado. Los cambios solo serán públicos cuando reemplace index.html en GitHub.</p>
+<label>Enlace del PDF<input type="url" id="doc-pdf" placeholder="https://..." value="${escapeHtml(draftDocs.pdf)}" oninput="setDocDraft('pdf',this.value)"></label>
+<label>Video — Parte 1<input type="url" id="doc-video1" placeholder="https://..." value="${escapeHtml(draftDocs.video1)}" oninput="setDocDraft('video1',this.value)"></label>
+<label>Video — Parte 2<input type="url" id="doc-video2" placeholder="https://..." value="${escapeHtml(draftDocs.video2)}" oninput="setDocDraft('video2',this.value)"></label>
+<button onclick="downloadDocs()">Descargar index.html con los enlaces</button><p id="doc-status" class="small" aria-live="polite"></p></details>
+<p><button onclick="page('home')">← Volver al inicio</button></p></div>`;return}
+
 if(p==='guide'||p==='expo'){
 let ids=p==='expo'?[3,2,6]:[1,2,3,4,5,6,7,8];
 a.innerHTML=`<h2>${p==='expo'?'Ejercicios de exposición':'Guía completa'}</h2>${ids.map(id=>{
